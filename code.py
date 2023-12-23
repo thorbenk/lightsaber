@@ -69,9 +69,9 @@ switch = Button(pin, long_duration_ms = 1000)
 switch_state = False
 
 # external neopixels
-num_pixels = 100
-pixels = neopixel.NeoPixel(board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True)
-pixels.brightness = 0.8
+num_pixels = 13
+pixels = neopixel.NeoPixel(board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW")
+pixels.brightness = 0.3
 
 # onboard LIS3DH
 i2c = board.I2C()
@@ -151,7 +151,7 @@ while True:
     elif mode == 3:
         audio.stop()
         play_wav(2, loop=False)
-        for i in range(99, 0, -1):
+        for i in range(num_pixels - 1, 0, -1):
             pixels[i] = (0, 0, 0)
             pixels.show()
         time.sleep(1)
@@ -166,6 +166,8 @@ while True:
     elif mode == 5:
         if switch.short_count == 1:
             SABER_COLOR = (SABER_COLOR + 1) % 6
+            c = COLORS[SABER_COLOR]
+            print("color=%d,%d,%d" % (c[0], c[1], c[2]))
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
             set_rgb_led(COLORS[SABER_COLOR])
