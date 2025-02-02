@@ -62,20 +62,24 @@ def play_wav(num, loop=False):
     except:  # noqa: E722
         return
 
-
-# external button
-pin = DigitalInOut(board.EXTERNAL_BUTTON)
-pin.direction = Direction.INPUT
-pin.pull = Pull.UP
-switch = Button(pin, long_duration_ms=1000)
+# button 1
+b1pin = DigitalInOut(board.D13)
+b1pin.direction = Direction.INPUT
+b1pin.pull = Pull.UP
+switch = Button(b1pin, long_duration_ms = 1000)
 switch_state = False
 
+# button 2
+b2pin = DigitalInOut(board.D12)
+b2pin.direction = Direction.INPUT
+b2pin.pull = Pull.UP
+switch2 = Button(b2pin, long_duration_ms = 1000)
+brightness=True
+
 # external neopixels
-num_pixels = 13
-pixels = neopixel.NeoPixel(
-    board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW"
-)
-pixels.brightness = 0.3
+num_pixels = 38
+pixels = neopixel.NeoPixel(board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW")
+pixels.brightness = 0.7
 
 # onboard LIS3DH
 i2c = board.I2C()
@@ -85,32 +89,25 @@ lis3dh = adafruit_lis3dh.LIS3DH_I2C(i2c, int1=int1)
 lis3dh.range = adafruit_lis3dh.RANGE_2_G
 lis3dh.set_tap(1, HIT_THRESHOLD)
 
-red_led = pwmio.PWMOut(board.D10)
-green_led = pwmio.PWMOut(board.D11)
-blue_led = pwmio.PWMOut(board.D12)
-
-
-def set_rgb_led(color):
-    # convert from 0-255 (neopixel range) to 65535-0 (pwm range)
-    red_led.duty_cycle = int(simpleio.map_range(color[0], 0, 255, 65535, 0))
-    green_led.duty_cycle = int(simpleio.map_range(color[1], 0, 255, 65535, 0))
-    blue_led.duty_cycle = int(simpleio.map_range(color[2], 0, 255, 65535, 0))
-
-
-set_rgb_led(COLORS[SABER_COLOR])
-
 mode = 0
 swing = False
 hit = False
 
 while True:
     switch.update()
+    switch2.update()
+
+    if switch2.short_count == 1:
+            brightness = not brightness
+            pixels.brightness = 0.7 if brightness else 0.5
+            play_wav(20, loop=False)
+
     # startup
-    if mode == 0:
-        print(mode)
+    elif mode == 0:
         play_wav(0, loop=False)
-        for i in range(num_pixels):
+        for i in range(num_pixels//2):
             pixels[i] = COLORS[SABER_COLOR]
+            pixels[num_pixels-1-i] = COLORS[SABER_COLOR]
             pixels.show()
         time.sleep(1)
         play_wav(1, loop=True)
@@ -120,17 +117,14 @@ while True:
         x, y, z = lis3dh.acceleration
         accel_total = x * x + z * z
         if lis3dh.tapped:
-            print("tapped")
             mode = "hit"
         elif accel_total >= SWING_THRESHOLD:
-            print("swing")
             mode = "swing"
         if switch.short_count == 1:
             mode = 3
         if switch.long_press:
             audio.stop()
             play_wav(19, loop=True)
-            print("change color")
             mode = 5
     # clash or move
     elif mode == "hit":
@@ -157,8 +151,9 @@ while True:
     elif mode == 3:
         audio.stop()
         play_wav(2, loop=False)
-        for i in range(num_pixels - 1, 0, -1):
-            pixels[i] = (0, 0, 0)
+        for i in range(num_pixels//2):
+            pixels[num_pixels//2-1-i] = (0,0,0)
+            pixels[num_pixels//2-1+i] = (0,0,0)
             pixels.show()
         time.sleep(1)
         external_power.value = False
@@ -173,13 +168,10 @@ while True:
         if switch.short_count == 1:
             SABER_COLOR = (SABER_COLOR + 1) % 6
             c = COLORS[SABER_COLOR]
-            print("color=%d,%d,%d" % (c[0], c[1], c[2]))
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
-            set_rgb_led(COLORS[SABER_COLOR])
         if switch.long_press:
             play_wav(1, loop=True)
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
-            set_rgb_led(COLORS[SABER_COLOR])
             mode = 1
