@@ -16,23 +16,22 @@ playback = just_playback.Playback()
 
 @dataclass(frozen=True)
 class Conf:
-    bar_width = 50
+    blade_max_len = 50
 
 
 class Mode(Enum):
     OFF = 0
-    POWERING_ON = 1
     POWERING_OFF = 2
+    POWERING_ON = 1
     ON = 3
     CONFIGURE = 4
 
 
 @dataclass
 class State:
-    bar_position = 0
+    blade_length = 0
     sparkle = False
     mode: Mode = Mode.OFF
-    animate_direction = 1
     sparkle_char = "*"
     color: int = 0
 
@@ -42,7 +41,7 @@ state = State()
 
 tasks: list[asyncio.Task] = []
 
-clash_sounds = [
+CLASH_SOUNDS = [
     "sounds/clash1.wav",
     "sounds/clash2.wav",
     "sounds/clash3.wav",
@@ -53,7 +52,7 @@ clash_sounds = [
     "sounds/clash8.wav",
 ]
 
-swing_sounds = [
+SWING_SOUNDS = [
     "sounds/swing1.wav",
     "sounds/swing2.wav",
     "sounds/swing3.wav",
@@ -64,7 +63,7 @@ swing_sounds = [
     "sounds/swing8.wav",
 ]
 
-colors = [
+COLORS = [
     Fore.RED,
     Fore.GREEN,
     Fore.YELLOW,
@@ -81,28 +80,24 @@ def play_sound(fname: str, loop: bool):
 
 async def clash():
     playback.stop()
-    i = random.randint(0, len(clash_sounds) - 1)
-    play_sound(clash_sounds[i], False)
+    i = random.randint(0, len(CLASH_SOUNDS) - 1)
+    play_sound(CLASH_SOUNDS[i], False)
 
 
 async def swing():
     playback.stop()
-    i = random.randint(0, len(swing_sounds) - 1)
-    play_sound(swing_sounds[i], False)
+    i = random.randint(0, len(SWING_SOUNDS) - 1)
+    play_sound(SWING_SOUNDS[i], False)
 
 
 async def configure_mode_start_stop():
     if state.mode != Mode.CONFIGURE:
         state.mode = Mode.CONFIGURE
         playback.stop()
-        play_sound("sounds/z_color.wav", False)
+        play_sound("sounds/z_color.wav", True)
     else:
         playback.stop()
         state.mode = Mode.ON
-
-
-async def configure_next():
-    state.color = (state.color + 1) % len(colors)
 
 
 async def handle_keypress():
@@ -115,16 +110,15 @@ async def handle_keypress():
                 state.sparkle = False
                 while tasks:
                     tasks.pop().cancel()
-                state.animate_direction = 0 if state.animate_direction == 1 else 1
                 state.mode = (
                     Mode.POWERING_OFF
-                    if state.animate_direction == 0
+                    if state.mode in [Mode.ON, Mode.POWERING_ON]
                     else Mode.POWERING_ON
                 )
                 tasks.append(
                     asyncio.create_task(
                         animate_to_position(
-                            0 if state.animate_direction == 0 else conf.bar_width
+                            0 if state.mode == Mode.POWERING_OFF else conf.blade_max_len
                         )
                     )
                 )
@@ -134,14 +128,14 @@ async def handle_keypress():
             elif key == "c":
                 state.sparkle_char = "x"
                 asyncio.create_task(reset_sparkle_char())
-            elif key == "x":
+            elif key == "x" and state.mode == Mode.ON:
                 asyncio.create_task(clash())
-            elif key == "s":
+            elif key == "s" and state.mode == Mode.ON:
                 asyncio.create_task(swing())
             elif key == "t":
                 asyncio.create_task(configure_mode_start_stop())
             elif key == "n":
-                state.color = (state.color + 1) % len(colors)
+                state.color = (state.color + 1) % len(COLORS)
         await asyncio.sleep(0.0)  # Yield control back to the event loop
 
 
@@ -154,46 +148,50 @@ async def reset_sparkle_char():
 async def animate_to_position(target_position):
     """Animate the progress bar to the target position."""
 
-    assert target_position >= 0 and target_position <= conf.bar_width
+    assert target_position >= 0 and target_position <= conf.blade_max_len
 
-    step = 1 if target_position > state.bar_position else -1
+    step = 1 if target_position > state.blade_length else -1
 
     if step > 0:
         play_sound("sounds/0_on.wav", False)
     else:
         play_sound("sounds/2_off.wav", False)
 
-    assert state.bar_position >= 0 and state.bar_position <= conf.bar_width
+    assert state.blade_length >= 0 and state.blade_length <= conf.blade_max_len
 
-    while state.bar_position != target_position:
-        state.bar_position = max(0, (min(conf.bar_width, state.bar_position + step)))
+    while state.blade_length != target_position:
+        state.blade_length = max(
+            0, (min(conf.blade_max_len, state.blade_length + step))
+        )
         await asyncio.sleep(0.025)
 
     state.mode = Mode.OFF if target_position == 0 else Mode.ON
-    if target_position == conf.bar_width:
+    if target_position == conf.blade_max_len:
         state.sparkle = True
 
 
 async def progress_bar():
     while True:
-        assert state.bar_position >= 0 and state.bar_position <= conf.bar_width, (
-            f"bar_position={state.bar_position}, bar_width={conf.bar_width}"
+        assert state.blade_length >= 0 and state.blade_length <= conf.blade_max_len, (
+            f"bar_position={state.blade_length}, bar_width={conf.blade_max_len}"
         )
-        bar = ["#"] * state.bar_position + [" "] * (conf.bar_width - state.bar_position)
+        bar = ["#"] * state.blade_length + [" "] * (
+            conf.blade_max_len - state.blade_length
+        )
 
         if state.sparkle:
-            for i in range(state.bar_position):
+            for i in range(state.blade_length):
                 if random.random() < 0.1:  # 10% chance to sparkle
                     bar[i] = state.sparkle_char
 
         bar_str = "[" + "".join(bar) + "]"
-        assert len(bar_str) == conf.bar_width + 2
-        sys.stdout.write("\r" + colors[state.color] + bar_str + Fore.RESET)
+        assert len(bar_str) == conf.blade_max_len + 2
+        sys.stdout.write("\r" + COLORS[state.color] + bar_str + Fore.RESET)
         sys.stdout.flush()
 
         if not playback.playing and state.mode == Mode.ON:
             play_sound("sounds/1_idle.wav", True)
-        elif playback.playing and state.bar_position == 0:
+        elif playback.playing and state.blade_length == 0:
             playback.stop()
 
         await asyncio.sleep(0.05)
@@ -208,9 +206,6 @@ async def main():
         new_settings = termios.tcgetattr(fd)
         new_settings[3] = new_settings[3] & ~termios.ECHO
         termios.tcsetattr(fd, termios.TCSADRAIN, new_settings)
-
-        # Start the initial animation to 100%
-        tasks.append(asyncio.create_task(animate_to_position(conf.bar_width)))
 
         main_tasks = [
             asyncio.create_task(progress_bar()),
