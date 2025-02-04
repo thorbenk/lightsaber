@@ -36,14 +36,15 @@ external_power.direction = Direction.OUTPUT
 external_power.value = True
 
 wavs = []
-for filename in os.listdir('/sounds'):
-    if filename.lower().endswith('.wav') and not filename.startswith('.'):
-        wavs.append("/sounds/"+filename)
+for filename in os.listdir("/sounds"):
+    if filename.lower().endswith(".wav") and not filename.startswith("."):
+        wavs.append("/sounds/" + filename)
 wavs.sort()
 print(wavs)
 print(len(wavs))
 
 audio = audiobusio.I2SOut(board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_DATA)
+
 
 def play_wav(num, loop=False):
     """
@@ -58,19 +59,22 @@ def play_wav(num, loop=False):
         wave_file = open(n, "rb")
         wave = audiocore.WaveFile(wave_file)
         audio.play(wave, loop=loop)
-    except:  # pylint: disable=bare-except
+    except:  # noqa: E722
         return
+
 
 # external button
 pin = DigitalInOut(board.EXTERNAL_BUTTON)
 pin.direction = Direction.INPUT
 pin.pull = Pull.UP
-switch = Button(pin, long_duration_ms = 1000)
+switch = Button(pin, long_duration_ms=1000)
 switch_state = False
 
 # external neopixels
 num_pixels = 13
-pixels = neopixel.NeoPixel(board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW")
+pixels = neopixel.NeoPixel(
+    board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW"
+)
 pixels.brightness = 0.3
 
 # onboard LIS3DH
@@ -85,11 +89,13 @@ red_led = pwmio.PWMOut(board.D10)
 green_led = pwmio.PWMOut(board.D11)
 blue_led = pwmio.PWMOut(board.D12)
 
+
 def set_rgb_led(color):
     # convert from 0-255 (neopixel range) to 65535-0 (pwm range)
     red_led.duty_cycle = int(simpleio.map_range(color[0], 0, 255, 65535, 0))
     green_led.duty_cycle = int(simpleio.map_range(color[1], 0, 255, 65535, 0))
     blue_led.duty_cycle = int(simpleio.map_range(color[2], 0, 255, 65535, 0))
+
 
 set_rgb_led(COLORS[SABER_COLOR])
 
