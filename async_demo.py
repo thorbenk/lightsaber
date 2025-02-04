@@ -7,6 +7,9 @@ import tty
 import random
 import select
 from dataclasses import dataclass
+import just_playback
+
+playback = just_playback.Playback()
 
 
 @dataclass(frozen=True)
@@ -27,6 +30,46 @@ conf = Conf()
 state = State()
 
 tasks: list[asyncio.Task] = []
+
+clash_sounds = [
+    "sounds/clash1.wav",
+    "sounds/clash2.wav",
+    "sounds/clash3.wav",
+    "sounds/clash4.wav",
+    "sounds/clash5.wav",
+    "sounds/clash6.wav",
+    "sounds/clash7.wav",
+    "sounds/clash8.wav",
+]
+
+swing_sounds = [
+    "sounds/swing1.wav",
+    "sounds/swing2.wav",
+    "sounds/swing3.wav",
+    "sounds/swing4.wav",
+    "sounds/swing5.wav",
+    "sounds/swing6.wav",
+    "sounds/swing7.wav",
+    "sounds/swing8.wav",
+]
+
+
+def play_sound(fname: str, loop: bool):
+    playback.load_file(fname)
+    playback.play()
+    playback.loop_at_end(loop)
+
+
+async def clash():
+    playback.stop()
+    i = random.randint(0, len(clash_sounds) - 1)
+    play_sound(clash_sounds[i], False)
+
+
+async def swing():
+    playback.stop()
+    i = random.randint(0, len(swing_sounds) - 1)
+    play_sound(swing_sounds[i], False)
 
 
 async def handle_keypress():
@@ -54,6 +97,10 @@ async def handle_keypress():
             elif key == "c":
                 state.sparkle_char = "x"
                 asyncio.create_task(reset_sparkle_char())
+            elif key == "x":
+                asyncio.create_task(clash())
+            elif key == "s":
+                asyncio.create_task(swing())
         await asyncio.sleep(0.0)  # Yield control back to the event loop
 
 
@@ -70,11 +117,16 @@ async def animate_to_position(target_position):
 
     step = 1 if target_position > state.bar_position else -1
 
+    if step > 0:
+        play_sound("sounds/0_on.wav", False)
+    else:
+        play_sound("sounds/2_off.wav", False)
+
     assert state.bar_position >= 0 and state.bar_position <= conf.bar_width
 
     while state.bar_position != target_position:
         state.bar_position = max(0, (min(conf.bar_width, state.bar_position + step)))
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.025)
 
     state.animation_active = False
     if target_position == conf.bar_width:
@@ -98,10 +150,14 @@ async def progress_bar():
         sys.stdout.write("\r" + bar_str)
         sys.stdout.flush()
 
-        if state.animation_active and state.bar_position < conf.bar_width:
-            state.bar_position += 1
-            if state.bar_position >= conf.bar_width:
-                state.bar_position = conf.bar_width
+        if (
+            not playback.playing
+            and not state.bar_position == 0
+            and not state.animation_active
+        ):
+            play_sound("sounds/1_idle.wav", True)
+        elif playback.playing and state.bar_position == 0:
+            playback.stop()
 
         await asyncio.sleep(0.05)
 
