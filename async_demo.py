@@ -8,6 +8,8 @@ import random
 import select
 from dataclasses import dataclass
 import just_playback
+from enum import Enum
+from colorama import Fore
 
 playback = just_playback.Playback()
 
@@ -17,13 +19,22 @@ class Conf:
     bar_width = 50
 
 
+class Mode(Enum):
+    OFF = 0
+    POWERING_ON = 1
+    POWERING_OFF = 2
+    ON = 3
+    CONFIGURE = 4
+
+
 @dataclass
 class State:
     bar_position = 0
     sparkle = False
-    animation_active = True
+    mode: Mode = Mode.OFF
     animate_direction = 1
     sparkle_char = "*"
+    color: int = 0
 
 
 conf = Conf()
@@ -53,6 +64,14 @@ swing_sounds = [
     "sounds/swing8.wav",
 ]
 
+colors = [
+    Fore.RED,
+    Fore.GREEN,
+    Fore.YELLOW,
+    Fore.WHITE,
+    Fore.BLUE,
+]
+
 
 def play_sound(fname: str, loop: bool):
     playback.load_file(fname)
@@ -72,6 +91,20 @@ async def swing():
     play_sound(swing_sounds[i], False)
 
 
+async def configure_mode_start_stop():
+    if state.mode != Mode.CONFIGURE:
+        state.mode = Mode.CONFIGURE
+        playback.stop()
+        play_sound("sounds/z_color.wav", False)
+    else:
+        playback.stop()
+        state.mode = Mode.ON
+
+
+async def configure_next():
+    state.color = (state.color + 1) % len(colors)
+
+
 async def handle_keypress():
     """Handle keypress events to reset the progress bar or toggle sparkle."""
 
@@ -79,11 +112,15 @@ async def handle_keypress():
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             key = sys.stdin.read(1)
             if key == "a":
-                state.animation_active = True
                 state.sparkle = False
                 while tasks:
                     tasks.pop().cancel()
                 state.animate_direction = 0 if state.animate_direction == 1 else 1
+                state.mode = (
+                    Mode.POWERING_OFF
+                    if state.animate_direction == 0
+                    else Mode.POWERING_ON
+                )
                 tasks.append(
                     asyncio.create_task(
                         animate_to_position(
@@ -101,6 +138,10 @@ async def handle_keypress():
                 asyncio.create_task(clash())
             elif key == "s":
                 asyncio.create_task(swing())
+            elif key == "t":
+                asyncio.create_task(configure_mode_start_stop())
+            elif key == "n":
+                state.color = (state.color + 1) % len(colors)
         await asyncio.sleep(0.0)  # Yield control back to the event loop
 
 
@@ -128,7 +169,7 @@ async def animate_to_position(target_position):
         state.bar_position = max(0, (min(conf.bar_width, state.bar_position + step)))
         await asyncio.sleep(0.025)
 
-    state.animation_active = False
+    state.mode = Mode.OFF if target_position == 0 else Mode.ON
     if target_position == conf.bar_width:
         state.sparkle = True
 
@@ -147,14 +188,10 @@ async def progress_bar():
 
         bar_str = "[" + "".join(bar) + "]"
         assert len(bar_str) == conf.bar_width + 2
-        sys.stdout.write("\r" + bar_str)
+        sys.stdout.write("\r" + colors[state.color] + bar_str + Fore.RESET)
         sys.stdout.flush()
 
-        if (
-            not playback.playing
-            and not state.bar_position == 0
-            and not state.animation_active
-        ):
+        if not playback.playing and state.mode == Mode.ON:
             play_sound("sounds/1_idle.wav", True)
         elif playback.playing and state.bar_position == 0:
             playback.stop()

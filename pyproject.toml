@@ -5,6 +5,7 @@ description = ""
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "colorama>=0.4.6",
     "just-playback>=0.1.8",
     "wave>=0.0.2",
 ]
@@ -14,4 +15,5 @@ dev = [
     "circuitpython-stubs>=9.2.4",
     "mypy>=1.14.1",
     "ruff>=0.9.4",
+    "types-colorama>=0.4.15.20240311",
 ]
