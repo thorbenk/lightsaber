@@ -9,6 +9,8 @@ from digitalio import DigitalInOut, Direction, Pull
 import neopixel
 import adafruit_lis3dh
 import asyncio
+from adafruit_ticks import ticks_ms, ticks_add, ticks_less
+import colorsys
 
 # CUSTOMIZE SENSITIVITY HERE: smaller numbers = more sensitive to motion
 HIT_THRESHOLD = 120
@@ -27,36 +29,60 @@ CLASH_COLOR = WHITE
 # provides power to the external components
 external_power = DigitalInOut(board.EXTERNAL_POWER)
 external_power.direction = Direction.OUTPUT
-external_power.value = True
 
 CLASH_SOUNDS = [
-    "sounds/clash1.wav",
-    "sounds/clash2.wav",
-    "sounds/clash3.wav",
-    "sounds/clash4.wav",
-    "sounds/clash5.wav",
-    "sounds/clash6.wav",
-    "sounds/clash7.wav",
-    "sounds/clash8.wav",
+    "clash1.wav",
+    "clash2.wav",
+    "clash3.wav",
+    "clash4.wav",
+    "clash5.wav",
+    "clash6.wav",
+    "clash7.wav",
+    "clash8.wav",
 ]
 
 SWING_SOUNDS = [
-    "sounds/swing1.wav",
-    "sounds/swing2.wav",
-    "sounds/swing3.wav",
-    "sounds/swing4.wav",
-    "sounds/swing5.wav",
-    "sounds/swing6.wav",
-    "sounds/swing7.wav",
-    "sounds/swing8.wav",
+    "swing1.wav",
+    "swing2.wav",
+    "swing3.wav",
+    "swing4.wav",
+    "swing5.wav",
+    "swing6.wav",
+    "swing7.wav",
+    "swing8.wav",
 ]
+
+sound_lenghts = {
+    "0_on.wav": 1.72,
+    "1_idle.wav": 2.02,
+    "2_off.wav": 1.27,
+    "clash1.wav": 1.00,
+    "clash2.wav": 1.00,
+    "clash3.wav": 1.00,
+    "clash4.wav": 0.67,
+    "clash5.wav": 0.67,
+    "clash6.wav": 0.85,
+    "clash7.wav": 0.67,
+    "clash8.wav": 0.88,
+    "swing1.wav": 0.70,
+    "swing2.wav": 0.70,
+    "swing3.wav": 0.65,
+    "swing4.wav": 0.70,
+    "swing5.wav": 0.67,
+    "swing6.wav": 1.15,
+    "swing7.wav": 1.00,
+    "swing8.wav": 0.70,
+    "z_color.wav": 6.00,
+    "zz_march.wav": 9.65,
+}
+
 
 audio = audiobusio.I2SOut(board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_DATA)
 
 
 def play_sound(fname, loop=False):
     try:
-        wave_file = open(fname, "rb")
+        wave_file = open("sounds/" + fname, "rb")
         wave = audiocore.WaveFile(wave_file)
         audio.stop()
         audio.play(wave, loop=loop)
@@ -109,6 +135,8 @@ class State:
         self.mode = M_OFF
         self.blade_length = 0
         self.color_idx = 3
+        self.tick = ticks_ms()
+        self.first_hue = 0
 
 
 state = State()
@@ -118,12 +146,15 @@ tasks: list[asyncio.Task] = []
 async def animate_to_position(target_position):
     assert target_position >= 0 and target_position <= BLADE_LENGTH
 
+    if state.mode == M_POWERING_ON:
+        external_power.value = 1
+
     step = 1 if target_position > state.blade_length else -1
 
     if step > 0:
-        play_sound("sounds/0_on.wav", False)
+        play_sound("0_on.wav", False)
     else:
-        play_sound("sounds/2_off.wav", False)
+        play_sound("2_off.wav", False)
 
     assert state.blade_length >= 0 and state.blade_length <= BLADE_LENGTH
 
@@ -136,42 +167,48 @@ async def animate_to_position(target_position):
     #    state.sparkle = True
 
     if state.mode == M_IDLE:
-        play_sound("sounds/1_idle.wav", loop=True)
+        play_sound("1_idle.wav", loop=True)
     else:
         audio.stop()
+        external_power.value = 0
 
 
 async def light_and_sounds():
     while True:
-        color = COLORS[state.color_idx]
+        hues = state.color_idx >= len(COLORS)
+        color = COLORS[state.color_idx] if not hues else WHITE
         if state.mode == M_IDLE or state.mode == M_HERO:
-            external_power.value = True
-            pixels.fill(color)
-            pixels.show()
+            if not hues:
+                pixels.fill(color)
+                pixels.show()
+            else:
+                if not ticks_less(ticks_ms(), state.tick):
+                    c = colorsys.hsv_to_rgb(state.first_hue / 255.0, 1.0, 1.0)
+                    pixels.fill((int(255 * c[0]), int(255 * c[1]), int(255 * c[2])))
+                    state.tick = ticks_add(ticks_ms(), 50)
+                    state.first_hue = (state.first_hue + 1) % 255
+                    pixels.show()
         elif state.mode == M_POWERING_ON or state.mode == M_POWERING_OFF:
-            external_power.value = True
             pixels.fill((0, 0, 0))
             for i in range(0, state.blade_length):
                 pixels[i] = color
                 pixels[NUM_PIXELS - 1 - i] = color
             pixels.show()
         elif state.mode == M_HIT or state.mode == M_SWING:
-            external_power.value = True
             pixels.fill(CLASH_COLOR)
             pixels.show()
         elif state.mode == M_CONFIGURE:
-            external_power.value = True
             pixels.fill(color)
             pixels.show()
         else:
-            external_power.value = False
+            pass
         await asyncio.sleep(0.01)
 
 
 async def reset_to_idle(wait):
     await asyncio.sleep(wait)
     state.mode = M_IDLE
-    play_sound("sounds/1_idle.wav", loop=True)
+    play_sound("1_idle.wav", loop=True)
 
 
 async def handle_events():
@@ -179,25 +216,23 @@ async def handle_events():
         switch.update()
         switch2.update()
 
-        if state.mode not in [
-            M_POWERING_ON,
-            M_POWERING_OFF,
-            M_OFF,
-            M_CONFIGURE,
-            M_HERO,
-        ]:
+        if state.mode == M_IDLE:
             x, y, z = lis3dh.acceleration
             accel_total = x * x + z * z
             if lis3dh.tapped:
                 state.mode = M_HIT
-                # print("hit")
-                play_sound(CLASH_SOUNDS[random.randint(0, len(CLASH_SOUNDS)) - 1])
-                tasks.append(asyncio.create_task(reset_to_idle(0.5)))
+                print("hit")
+                idx = random.randint(0, len(CLASH_SOUNDS)) - 1
+                snd = CLASH_SOUNDS[idx]
+                play_sound(snd)
+                tasks.append(asyncio.create_task(reset_to_idle(sound_lenghts[snd])))
             elif accel_total >= SWING_THRESHOLD:
                 state.mode = M_SWING
-                # print("swing")
-                play_sound(SWING_SOUNDS[random.randint(0, len(SWING_SOUNDS)) - 1])
-                tasks.append(asyncio.create_task(reset_to_idle(0.5)))
+                print("swing")
+                idx = random.randint(0, len(SWING_SOUNDS)) - 1
+                snd = SWING_SOUNDS[idx]
+                play_sound(snd)
+                tasks.append(asyncio.create_task(reset_to_idle(sound_lenghts[snd])))
 
         if switch.short_count == 1:
             if state.mode != M_CONFIGURE:
@@ -216,19 +251,19 @@ async def handle_events():
                     )
                 )
             else:
-                state.color_idx = (state.color_idx + 1) % len(COLORS)
+                state.color_idx = (state.color_idx + 1) % (len(COLORS) + 1)
         if switch.long_press:
             print("configure")
             if state.mode == M_CONFIGURE:
                 tasks.append(asyncio.create_task(reset_to_idle(0.0)))
             else:
-                play_sound("sounds/z_color.wav", loop=True)
+                play_sound("z_color.wav", loop=True)
                 state.mode = M_CONFIGURE
 
         if switch2.short_count == 1:
             audio.stop()
             state.mode = M_HERO
-            play_sound("sounds/zz_march.wav")
+            play_sound("zz_march.wav")
             tasks.append(asyncio.create_task(reset_to_idle(10.75)))
 
         await asyncio.sleep(0.0)
