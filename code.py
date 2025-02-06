@@ -1,19 +1,14 @@
-# SPDX-FileCopyrightText: 2023 Liz Clark for Adafruit Industries
-#
-# SPDX-License-Identifier: MIT
+# Based on the original Adafruit code copyright 2023 Liz Clark for Adafruit Industries
 
 import time
-import os
 import random
 import board
-import pwmio
 import audiocore
 import audiobusio
 from adafruit_debouncer import Button
 from digitalio import DigitalInOut, Direction, Pull
 import neopixel
 import adafruit_lis3dh
-import simpleio
 
 # CUSTOMIZE SENSITIVITY HERE: smaller numbers = more sensitive to motion
 HIT_THRESHOLD = 120
@@ -35,50 +30,59 @@ external_power = DigitalInOut(board.EXTERNAL_POWER)
 external_power.direction = Direction.OUTPUT
 external_power.value = True
 
-wavs = []
-for filename in os.listdir("/sounds"):
-    if filename.lower().endswith(".wav") and not filename.startswith("."):
-        wavs.append("/sounds/" + filename)
-wavs.sort()
-print(wavs)
-print(len(wavs))
+CLASH_SOUNDS = [
+    "sounds/clash1.wav",
+    "sounds/clash2.wav",
+    "sounds/clash3.wav",
+    "sounds/clash4.wav",
+    "sounds/clash5.wav",
+    "sounds/clash6.wav",
+    "sounds/clash7.wav",
+    "sounds/clash8.wav",
+]
+
+SWING_SOUNDS = [
+    "sounds/swing1.wav",
+    "sounds/swing2.wav",
+    "sounds/swing3.wav",
+    "sounds/swing4.wav",
+    "sounds/swing5.wav",
+    "sounds/swing6.wav",
+    "sounds/swing7.wav",
+    "sounds/swing8.wav",
+]
 
 audio = audiobusio.I2SOut(board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_DATA)
 
 
-def play_wav(num, loop=False):
-    """
-    Play a WAV file in the 'sounds' directory.
-    :param name: partial file name string, complete name will be built around
-                 this, e.g. passing 'foo' will play file 'sounds/foo.wav'.
-    :param loop: if True, sound will repeat indefinitely (until interrupted
-                 by another sound).
-    """
+def play_wav(fname, loop=False):
     try:
-        n = wavs[num]
-        wave_file = open(n, "rb")
+        wave_file = open(fname, "rb")
         wave = audiocore.WaveFile(wave_file)
         audio.play(wave, loop=loop)
     except:  # noqa: E722
         return
 
+
 # button 1
 b1pin = DigitalInOut(board.D13)
 b1pin.direction = Direction.INPUT
 b1pin.pull = Pull.UP
-switch = Button(b1pin, long_duration_ms = 1000)
+switch = Button(b1pin, long_duration_ms=1000)
 switch_state = False
 
 # button 2
 b2pin = DigitalInOut(board.D12)
 b2pin.direction = Direction.INPUT
 b2pin.pull = Pull.UP
-switch2 = Button(b2pin, long_duration_ms = 1000)
-brightness=True
+switch2 = Button(b2pin, long_duration_ms=1000)
+brightness = True
 
 # external neopixels
 num_pixels = 38
-pixels = neopixel.NeoPixel(board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW")
+pixels = neopixel.NeoPixel(
+    board.EXTERNAL_NEOPIXELS, num_pixels, auto_write=True, pixel_order="GRBW"
+)
 pixels.brightness = 0.7
 
 # onboard LIS3DH
@@ -98,19 +102,19 @@ while True:
     switch2.update()
 
     if switch2.short_count == 1:
-            brightness = not brightness
-            pixels.brightness = 0.7 if brightness else 0.5
-            play_wav(20, loop=False)
+        brightness = not brightness
+        pixels.brightness = 0.7 if brightness else 0.5
+        play_wav("sounds/zz_march.wav", loop=False)
 
     # startup
     elif mode == 0:
-        play_wav(0, loop=False)
-        for i in range(num_pixels//2):
+        play_wav("sounds/0_on.wav", loop=False)
+        for i in range(num_pixels // 2):
             pixels[i] = COLORS[SABER_COLOR]
-            pixels[num_pixels-1-i] = COLORS[SABER_COLOR]
+            pixels[num_pixels - 1 - i] = COLORS[SABER_COLOR]
             pixels.show()
         time.sleep(1)
-        play_wav(1, loop=True)
+        play_wav("sounds/1_idle.wav", loop=True)
         mode = 1
     # default
     elif mode == 1:
@@ -124,36 +128,36 @@ while True:
             mode = 3
         if switch.long_press:
             audio.stop()
-            play_wav(19, loop=True)
+            play_wav("sounds/z_color.wav", loop=True)
             mode = 5
     # clash or move
     elif mode == "hit":
         audio.stop()
-        play_wav(random.randint(3, 10), loop=False)
+        play_wav(CLASH_SOUNDS[random.randint(0, len(CLASH_SOUNDS)) - 1])
         while audio.playing:
             pixels.fill(WHITE)
             pixels.show()
         pixels.fill(COLORS[SABER_COLOR])
         pixels.show()
-        play_wav(1, loop=True)
+        play_wav("sounds/1_idle.wav", loop=True)
         mode = 1
     elif mode == "swing":
         audio.stop()
-        play_wav(random.randint(11, 18), loop=False)
+        play_wav(SWING_SOUNDS[random.randint(0, len(SWING_SOUNDS)) - 1])
         while audio.playing:
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
         pixels.fill(COLORS[SABER_COLOR])
         pixels.show()
-        play_wav(1, loop=True)
+        play_wav("sounds/1_idle.wav", loop=True)
         mode = 1
     # turn off
     elif mode == 3:
         audio.stop()
-        play_wav(2, loop=False)
-        for i in range(num_pixels//2):
-            pixels[num_pixels//2-1-i] = (0,0,0)
-            pixels[num_pixels//2-1+i] = (0,0,0)
+        play_wav("sounds/2_off.wav")
+        for i in range(num_pixels // 2):
+            pixels[num_pixels // 2 - 1 - i] = (0, 0, 0)
+            pixels[num_pixels // 2 - 1 + i] = (0, 0, 0)
             pixels.show()
         time.sleep(1)
         external_power.value = False
@@ -171,7 +175,7 @@ while True:
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
         if switch.long_press:
-            play_wav(1, loop=True)
+            play_wav("sounds/1_idle.wav", loop=True)
             pixels.fill(COLORS[SABER_COLOR])
             pixels.show()
             mode = 1
