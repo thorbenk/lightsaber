@@ -74,6 +74,7 @@ sound_lenghts = {
     "swing8.wav": 0.70,
     "z_color.wav": 6.00,
     "zz_march.wav": 9.65,
+    "zz_clonewars.wav": 18.56,
 }
 
 
@@ -82,11 +83,14 @@ audio = audiobusio.I2SOut(board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_
 
 def play_sound(fname, loop=False):
     try:
-        wave_file = open("sounds/" + fname, "rb")
+        fname="sounds/" + fname
+        wave_file = open(fname, "rb")
+        print(fname)
         wave = audiocore.WaveFile(wave_file)
         audio.stop()
         audio.play(wave, loop=loop)
-    except:  # noqa: E722
+    except Exception as e:  # noqa: E722
+        print(e)
         return
 
 
@@ -263,8 +267,12 @@ async def handle_events():
         if switch2.short_count == 1:
             audio.stop()
             state.mode = M_HERO
-            play_sound("zz_march.wav")
-            tasks.append(asyncio.create_task(reset_to_idle(10.75)))
+            if state.color_idx == 0:
+                play_sound("zz_march.wav")
+                tasks.append(asyncio.create_task(reset_to_idle(9.75)))
+            else:
+                play_sound("zz_clonewars.wav")
+                tasks.append(asyncio.create_task(reset_to_idle(18.56)))
 
         await asyncio.sleep(0.0)
 
