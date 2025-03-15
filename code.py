@@ -285,9 +285,12 @@ async def handle_events():
             if state.color_idx == 0:
                 play_sound("zz_march.wav")
                 tasks.append(asyncio.create_task(reset_to_idle(9.75)))
-            if state.color_idx == 1:
+            elif state.color_idx == 1:
                 play_sound_mp3("zz_duel_begins.mp3")
                 tasks.append(asyncio.create_task(reset_to_idle(14.4)))
+            elif state.color_idx == 2:
+                play_sound_mp3("zz_throneroom.mp3")
+                tasks.append(asyncio.create_task(reset_to_idle(17.5)))
             else:
                 play_sound("zz_clonewars.wav")
                 tasks.append(asyncio.create_task(reset_to_idle(18.56)))
