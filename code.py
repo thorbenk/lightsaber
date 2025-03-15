@@ -11,10 +11,12 @@ import adafruit_lis3dh
 import asyncio
 from adafruit_ticks import ticks_ms, ticks_add, ticks_less
 import colorsys
+from audiomp3 import MP3Decoder
 
 # CUSTOMIZE SENSITIVITY HERE: smaller numbers = more sensitive to motion
 HIT_THRESHOLD = 120
 SWING_THRESHOLD = 130
+
 RED = (255, 0, 0)
 YELLOW = (125, 255, 0)
 GREEN = (0, 255, 0)
@@ -23,7 +25,7 @@ BLUE = (0, 0, 255)
 PURPLE = (125, 0, 255)
 WHITE = (255, 255, 255)
 COLORS = [RED, YELLOW, GREEN, CYAN, BLUE, PURPLE, WHITE]
-CLASH_COLOR = WHITE
+CLASH_EXTRA_WHITE = 32
 
 # enable external power pin
 # provides power to the external components
@@ -77,9 +79,11 @@ sound_lenghts = {
     "zz_clonewars.wav": 18.56,
 }
 
+mp3_files = ["sounds/zz_duel_begins.mp3"]
 
 audio = audiobusio.I2SOut(board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_DATA)
-
+mp3 = open(mp3_files[0], 'rb')
+mp3_decoder = MP3Decoder(mp3)
 
 def play_sound(fname, loop=False):
     try:
@@ -89,6 +93,17 @@ def play_sound(fname, loop=False):
         wave = audiocore.WaveFile(wave_file)
         audio.stop()
         audio.play(wave, loop=loop)
+    except Exception as e:  # noqa: E722
+        print(e)
+        return
+
+def play_sound_mp3(fname, loop=False):
+    try:
+        fname="sounds/" + fname
+        mp3_decoder.file = open(fname, "rb")
+        print(fname)
+        audio.stop()
+        audio.play(mp3_decoder, loop=loop)
     except Exception as e:  # noqa: E722
         print(e)
         return
@@ -138,7 +153,7 @@ class State:
     def __init__(self):
         self.mode = M_OFF
         self.blade_length = 0
-        self.color_idx = 3
+        self.color_idx = 0
         self.tick = ticks_ms()
         self.first_hue = 0
 
@@ -199,7 +214,7 @@ async def light_and_sounds():
                 pixels[NUM_PIXELS - 1 - i] = color
             pixels.show()
         elif state.mode == M_HIT or state.mode == M_SWING:
-            pixels.fill(CLASH_COLOR)
+            pixels.fill(color+ (CLASH_EXTRA_WHITE,))
             pixels.show()
         elif state.mode == M_CONFIGURE:
             pixels.fill(color)
@@ -270,6 +285,9 @@ async def handle_events():
             if state.color_idx == 0:
                 play_sound("zz_march.wav")
                 tasks.append(asyncio.create_task(reset_to_idle(9.75)))
+            if state.color_idx == 1:
+                play_sound_mp3("zz_duel_begins.mp3")
+                tasks.append(asyncio.create_task(reset_to_idle(14.4)))
             else:
                 play_sound("zz_clonewars.wav")
                 tasks.append(asyncio.create_task(reset_to_idle(18.56)))

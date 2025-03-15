@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.12"
 
 [[package]]
@@ -98,7 +99,7 @@ wheels = [
 
 [[package]]
 name = "circup"
-version = "2.1.1"
+version = "2.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -109,9 +110,9 @@ dependencies = [
     { name = "toml" },
     { name = "update-checker" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/85/d7/d6bda5c3e31530aa0a6e542a4920e7a3c7f8cf88427e2609c66c1ecc748c/circup-2.1.1.tar.gz", hash = "sha256:a1a5c2b33b6e169647a602945d4ca7823d6dc4708db5af8a9ce111504178290f", size = 115112 }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c1/4033a2fa54aab3e20e5131aecb99ba0a75beefd21ea83ba4ac158dba8b5f/circup-2.1.2.tar.gz", hash = "sha256:b6ffdbe4ff54a2be7b505b89dfc844446d2953813103acd678e136a42c2a5ebe", size = 115165 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/2a/9a60935bf8c9cff20f792ddd8e26bdb5aabfc210d0ed41ee753dee355334/circup-2.1.1-py3-none-any.whl", hash = "sha256:42aa94f3ccd7b4d0834b3c4faa531b5f163f420806d1cbe091496e77a1a6f05f", size = 43825 },
+    { url = "https://files.pythonhosted.org/packages/e0/75/2f0ca5d17c9b6192b2ca21818f79b6de416e318f7dd044bf0ea912e50b2a/circup-2.1.2-py3-none-any.whl", hash = "sha256:3f77bd2496b51df7750dd5d9920c680f0057abddadcadf69b868129a5b41674c", size = 43819 },
 ]
 
 [[package]]
@@ -209,7 +210,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "circup", specifier = ">=2.1.1" },
+    { name = "circup", specifier = ">=2.1.2" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "just-playback", specifier = ">=0.1.8" },
     { name = "wave", specifier = ">=0.0.2" },
