@@ -10,6 +10,15 @@ I have re-done the CAD based on the original design, but with some modifications
 
 The CAD files can be found [in this onshapce document](https://cad.onshape.com/documents/32c2602e3ec2143ee914f82c/w/424b6ddb0cde132faabc46b4/e/2112e8064fa2641e1ce7c5a6?renderMode=0&uiState=67d6a57c4432c4612150b57f)
 
+## Bill of materials
+
+I've changed some aspects compared to the original design, in particular:
+
+- [Speaker](https://www.amazon.de/dp/B00NQ0LHNA): 4 Ohm, 3W round speaker with 40 mm diameter
+- [Momentary Push buttons](https://www.amazon.de/dp/B0BK3829XL): 16 mm diameter
+- [On/Off button](https://www.amazon.de/dp/B0C3BYF7SM): 16 mm diameter (better: normally open, only closed when pushed down)
+- [Acrylic tube](https://www.amazon.de/dp/B08FP8P12B): 30/26 mm
+
 ## Setup
 
 - Install `adafruit-circuitpython-adafruit_feather_rp2040_prop_maker-en_US-9.2.4.uf2`
